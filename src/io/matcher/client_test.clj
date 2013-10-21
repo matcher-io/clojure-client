@@ -1,18 +1,19 @@
 (ns io.matcher.client-test
   (:require
-    [langohr.core   :as rmq]
     [io.matcher.client :as matcher]
-    [clojure.tools.logging :as log]
-  )
-)
-
+    [io.matcher.config :as config]
+    [langohr.core   :as rmq]
+    [clojure.tools.logging :as log]))
+  
 (defonce connection 
-  (rmq/connect 
-     {:uri "amqp://matcherserver:I4FkqPnsgtCo@amqp.suprematic.net:5672/matcher" :requested-heartbeat 10}))
+  (rmq/connect config/CONNECTION_OPTIONS))  
 
 
 (defn test-place-request [id]
-  (let [age (rand-int 100) position (rand-int 100) price (rand-int 100) class (rand-int 100)]
+  (let [age (rand-int 100) 
+        position (rand-int 100) 
+        price (rand-int 100) 
+        class (rand-int 100)]
 	  [
 	     (matcher/place-request 
 	          { ; Properties
@@ -92,23 +93,10 @@
 
 
 (defn test-place [npairs]
-  (let [results (promise)
-    transactor (matcher/transactor connection "match_input_queue" nil)]
-
-    (deref 
-      (matcher/place-many transactor 
-          (shuffle (flatten (make-pairs npairs)))) 5000 :timeout)
-
-    (matcher/close transactor)
-  )  
-)
-
-
-
-
-
-
-
-
-
-
+  (let [results (promise)]
+    (with-open [transactor (matcher/transactor connection "match_input_queue" nil)]
+      (deref 
+        (matcher/place-many transactor 
+                            (shuffle (flatten (make-pairs npairs)))) 5000 :timeout))))
+      
+      

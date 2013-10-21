@@ -1,175 +1,133 @@
 (ns io.matcher.client
-  (:require 
-    [langohr.channel   :as lch]
-    [langohr.queue     :as lq]
-    [langohr.consumers :as lc]
-    [langohr.basic     :as lb]
-    [clojure.data.json :as json]
-    [clojure.tools.logging :as log]
-  )
-)
+  (:use io.matcher.config)
+  (:require [io.matcher.utils      :as utils]
+            [io.matcher.amqp-utils :as aqutils]
+            [langohr.channel       :as lch]
+            [langohr.core          :as lcore]
+            [langohr.queue         :as lq]
+            [langohr.consumers     :as lc]
+            [langohr.basic         :as lb]
+            [clojure.tools.logging :as log]
+            [clojure.data.json     :as json]))
 
-
-(defn make-request [action properties capabilities match ttl] 
-  (let [structure 
-       {
-         :action action
-         :properties properties
-         :capabilities capabilities
-         :match match
-         :ttl  ttl
-       }]
-
-     structure  
-  )
-)
-
-(def place-request 
-  (partial make-request "PLACE"))
-
-(def update-request 
-  (partial make-request "UPDATE"))
-
-(defn retract-request [request]
-  {:action "RETRACT"
-  :request request})
-
-
+(def ^:dynamic *transactor* nil)
 
 (defprotocol Transactor
    (request-async [this request listener])
    (request-sync [this request])
-   (close [this])  
-)
+   (close [this]))
 
-(defn transactor [connection in-queue match-listener]
-   (let [channel (lch/open connection) queue (.getQueue (lq/declare channel)) correlation (atom 0) listeners (atom {}) transactor (atom nil)]
-      (lb/consume channel queue
-	       (lc/create-default channel 
-	                         :handle-delivery-fn 
-	                            (fn [ch metadata ^bytes payload]
-                                (let [type (:type metadata) json (json/read-str (String. payload "UTF-8") :key-fn keyword)]
-                                   (cond
-                                     (= type "confirm")
-                                       (let [correlation-id (:correlation-id metadata)]
-                                         (log/debug (str "response: " json))
-	                                       (if-let [listener (@listeners correlation-id)]
-                                           (do
-	                                           (swap! listeners dissoc correlation-id)
-	                                           (listener @transactor json))
-                                           (log/warn (str "unknown correlation id: " correlation-id))
-	                                       )
-                                       )
-                                       
-                                     (and (= type "match"))
-                                       (do
-                                         (log/debug (str "match: " json))
-                                       
-                                         (when match-listener
-                                           (match-listener @transactor json)))
-                                       
-                                     :else
-                                        (log/debug (str "undefined message type: " type " " json))
-                                        
-                                   )
-                                )
-                              )
-	                         
-                           )       
-      :auto-ack true)
-      
-      (reset! transactor
-	      (reify Transactor
-	        (close [_]
-	          (lq/delete channel queue)
-	          (lch/close channel)
-	        )
-	        
-	        (request-async [_ request listener]
-             (log/debug (str "request: " request))
-	           (let [correlation (str (swap! correlation inc)) request (assoc request :match_response_key queue)]
-	             
-	           (swap! listeners assoc correlation listener)  
-	             
-		         (lb/publish channel "" in-queue (json/write-str request) 
-		            :content-type "application/json" 
-		            :type "request" 
-		            :reply-to queue
-		            :correlation-id correlation)     
-	           )
-	           
-	           correlation
-	        )
-	        
-	        (request-sync [this req]
-	          (let [result (promise)]
-	             (let [correlation-id
-	                (request-async this req 
-	                   (fn [response]
-	                      (deliver result response)))]
-	            
-	               (let [result (deref result 5000 :timeout)]
-	                 (when (= result :timeout)
-	                   (swap! listeners dissoc correlation-id))
-	
-	                 result                 
-	               )
-	             )
-	          )
-	        )
-	      ))
-   )  
-)
+(defmacro with-matcher [connection match-listener & actions]
+;  `(with-open [tr# ]
+  `(binding [*transactor* (transactor ~connection IN_QUEUE ~match-listener)]
+     ~@actions))
+
+(defn place
+  "places request on the matcher"
+  [& {:keys [properties capabilities match ttl] :or {ttl DEFAULT_TTL}}]
+  (let [request (utils/place-request properties capabilities match ttl)]
+    (request-async *transactor* request nil)))
 
 
 
-(defn request-async-multi [transactor callback requests]
+(defn update
+  "updates the request(placed earlier) with the give id"
+  [& {:keys [id properties capabilities match ttl] :or {ttl DEFAULT_TTL}}]
+  (let [request (utils/update-request id properties capabilities match ttl)]
+    (request-async *transactor* request nil)))
+
+(defn retract
+  "retracts the request with the given id"
+  [id]
+  (let [request (utils/retract-request id)]
+    (request-sync *transactor* request)))
+
+(defn do-requests
+  "asynchrounously executes all the given requests"
+  [requests callback]
   (dorun
-    (map #(request-async transactor % callback) requests)))
+    (map #(request-async *transactor* % callback) requests)))
 
-
-(defn place-one [transactor request]
-   (request-sync transactor request))
-
-(defn retract-one [transactor id]
-   (request-sync transactor (retract-request id)))
-
-
-(defn make-counting-listener [count promise]
-  (let [counter (atom count) results (atom '())]
-	  (fn [t m] 
-	     (let [c (swap! counter dec)]
-          (swap! results conj m)
-          
-          (when (= c 0) 
-            (log/debug "counting listener reached 0 " @results)
-            (deliver promise (reverse @results))
-          )
-	     )
-	  )
-  )
-)
-
-
-(defn place-many [transactor requests]
-   (let [confirms (promise)]
-      (request-async-multi transactor 
-        (make-counting-listener (count requests) confirms) 
-           requests)
-      
-      confirms
-   )
-)
-
-(defn retract-many [transactor ids]
+(defn do-sync-requests
+  "synchrounously executes all the given requests"
+  [requests]
   (let [confirms (promise)]
-    (request-async-multi transactor 
-      (make-counting-listener (count ids) confirms) 
-         (map retract-request ids))
+    (do-requests  requests 
+                  (utils/make-counting-listener (count requests) confirms)) 
+    @confirms))
+
+
+(defn- make-delivery-handler [match-listener listeners]
+  (fn [channel metadata ^bytes payload]
+    (let [{:keys [type]} metadata 
+          content (utils/payload->json payload)]
+      (log/debug (str "message type: " type))
+                                  
+      ;; change predicate to response type?
+      (condp = type
+        "confirm" (let [{:keys [correlation-id]} metadata]
+                    (log/debug (str "response: " content))
+                    
+                    (if-let [listener (@listeners correlation-id)]
+                      (do
+                        (swap! listeners dissoc correlation-id)
+                        (listener @*transactor* content))
+                      (log/warn (str "unknown correlation id: " correlation-id))))
+        
+        "match" (do
+                  (log/debug (str "match: " content))
+                  
+                  (when match-listener
+                    (match-listener content)))
+                                     
+        ;default action
+        (log/debug (str "undefined message type: " type " " content))))))
+
+
+(defn transactor
+  "creates Transactor implementation for the given connection, input queue name and match-listener, which is call on matching"
+  [connection queueName match-listener]
+   (let [channel (lch/open connection)
+         inputQueue (aqutils/make-queue channel queueName) 
+         outputQueue (aqutils/make-queue channel OUT_QUEUE)
+         correlation (atom 0) listeners (atom {}) transactor (atom nil)] 
      
-    confirms    
-  )
-)
-
-  
-
+      (lb/consume channel OUT_QUEUE
+	       (lc/create-default channel 
+                           :handle-delivery-fn (make-delivery-handler match-listener listeners))
+        :auto-ack true)
+      
+      (reset! transactor 
+              (reify Transactor
+                (close [_]
+                  (lq/delete channel inputQueue)
+                  (lq/delete channel outputQueue)
+                  (lch/close channel))
+                
+                (request-async [_ request listener]
+                  (log/debug (str "request: " request))
+                  
+                  (let [correlation (str (swap! correlation inc))
+                        request (json/write-str (assoc request :match_response_key OUT_QUEUE))]
+                    
+                    (swap! listeners assoc correlation listener)  
+                    
+                    (lb/publish channel "" queueName request 
+                                :content-type "application/json" 
+						                    :type "request" 
+						                    :reply-to OUT_QUEUE
+						                    :correlation-id correlation)     
+						        
+                    correlation))
+						    
+                (request-sync [this req]
+                  (let [result (promise)
+                        correlation-id (request-async this req 
+                                                      (fn [response]
+                                                        (deliver result response)))
+                        
+                        result (deref result 5000 :timeout)]
+                    
+                    (when (= result :timeout)
+                      (swap! listeners dissoc correlation-id))                 
+                    result))))))
