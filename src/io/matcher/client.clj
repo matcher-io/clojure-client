@@ -10,7 +10,7 @@
             [clojure.tools.logging :as log]
             [clojure.data.json     :as json]))
 
-(def ^:dynamic *transactor* nil)
+(def ^:dynamic *transactor* (atom nil))
 
 (defprotocol Transactor
    (request-async [this request listener])
@@ -18,7 +18,6 @@
    (close [this]))
 
 (defmacro with-matcher [connection match-listener & actions]
-;  `(with-open [tr# ]
   `(binding [*transactor* (transactor ~connection IN_QUEUE ~match-listener)]
      ~@actions))
 
@@ -27,8 +26,6 @@
   [& {:keys [properties capabilities match ttl] :or {ttl DEFAULT_TTL}}]
   (let [request (utils/place-request properties capabilities match ttl)]
     (request-async *transactor* request nil)))
-
-
 
 (defn update
   "updates the request(placed earlier) with the give id"
@@ -56,8 +53,7 @@
                   (utils/make-counting-listener (count requests) confirms)) 
     @confirms))
 
-
-(defn- make-delivery-handler [match-listener listeners]
+(defn- make-delivery-handler [transactor match-listener listeners]
   (fn [channel metadata ^bytes payload]
     (let [{:keys [type]} metadata 
           content (utils/payload->json payload)]
@@ -68,10 +64,11 @@
         "confirm" (let [{:keys [correlation-id]} metadata]
                     (log/debug (str "response: " content))
                     
+                    (log/debug (str "listeners: " listeners))
                     (if-let [listener (@listeners correlation-id)]
                       (do
                         (swap! listeners dissoc correlation-id)
-                        (listener @*transactor* content))
+                        (listener content))
                       (log/warn (str "unknown correlation id: " correlation-id))))
         
         "match" (do
@@ -94,7 +91,7 @@
      
       (lb/consume channel OUT_QUEUE
 	       (lc/create-default channel 
-                           :handle-delivery-fn (make-delivery-handler match-listener listeners))
+                           :handle-delivery-fn (make-delivery-handler transactor match-listener listeners))
         :auto-ack true)
       
       (reset! transactor 
