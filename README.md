@@ -110,7 +110,7 @@ In case that no match found in time-to-live period, then response is this:
             
 ### UPDATE requests
 The UPDATE requests are almost the same as PLACE requests but also have id("request" field) of the previously posted request:  
-```javscript
+```javascript
 {
     "action": "UPDATE",
     "request":"512_667c16ea8a52fcd245037187826267e6", 
