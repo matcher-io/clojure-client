@@ -22,7 +22,7 @@ This manual concentrates on communication over AMQP.
 
 ### Basics
 
-Client communicates with Matcher by sending requests, after processing the request Matcher sends response to the client via AMQP.
+Client communicates with Matcher by sending requests, after processing the request Matcher sends response to the client via AMQP.  
 Request and responses all are in JSON format. 
 
 #### The request types are:
@@ -31,7 +31,7 @@ Request and responses all are in JSON format.
 - RETRACT - retracts/deletes the request that was posted before
 
 ### PLACE requests
-Let's suppose that Alice wants to buy a car which costs less than 30000, has red color and left hand wheel. Sample request:
+Let's suppose that Alice wants to buy a car which costs less than 30000, has red color and left hand wheel. Sample request:  
 ```javascript
 
         {
@@ -45,18 +45,18 @@ Let's suppose that Alice wants to buy a car which costs less than 30000, has red
         }
 ```
 Let's see each of the field one by one:
-    action - is the type of request;
-    properties - is property of the object which is posted(not used in matching);
-    capabilities - capabilities of the object that can be used for matching;
-    match - request that describes the critirias of desired object (see Matcher request language section);
-    ttl - time to leave(in microseconds). After given time request is deleted from Matcher;
-    version - version of Client-Matcher protocol. Currently: "1.0";
-    match_response_key - name of the queue where to return response(recommended it to keep the same with AMQP reply-to header);
+    action - is the type of request;  
+    properties - is property of the object which is posted(not used in matching);  
+    capabilities - capabilities of the object that can be used for matching;  
+    match - request that describes the critirias of desired object (see [Matcher query language](#matcher-query-language) section);  
+    ttl - time to leave(in microseconds). After given time request is deleted from Matcher;  
+    version - version of Client-Matcher protocol. Currently: "1.0";  
+    match_response_key - name of the queue where to return response(recommended it to keep the same with AMQP reply-to header);  
 
-After placing request Matcher gives response like this:
+After placing request Matcher gives response like this:  
     250 PLACED ....
         
-If the other side posts requests on selling cars - Matcher will try to find the compatible match for the Alice's request. Let's imagine that the following request was posted onto the Matcher:
+If the other side posts requests on selling cars - Matcher will try to find the compatible match for the Alice's request. Let's imagine that the following request was posted onto the Matcher:  
 
 ```javascript        
         {
@@ -70,9 +70,9 @@ If the other side posts requests on selling cars - Matcher will try to find the 
         }
 ```
 
-The request is almost same as the upper on except that match field is empty string, so that car doesn't have any requirements on the buyer. 
+The request is almost same as the upper on except that match field is empty string, so that car doesn't have any requirements on the buyer.    
     
-When Matcher finds two compatible requests it sends acknowledgement to both sides. Something like this:
+When Matcher finds two compatible requests it sends acknowledgement to both sides. Something like this:  
 ```javascript        
         {
             "version": "1.0",
@@ -109,7 +109,7 @@ In case that no match found in time-to-live period, then response is this:
 ```
             
 ### UPDATE requests
-The UPDATE requests are almost the same as PLACE requests but also have id("request" field) of the previously posted request:
+The UPDATE requests are almost the same as PLACE requests but also have id("request" field) of the previously posted request:  
 ```javscript
 
         {
@@ -126,8 +126,8 @@ The UPDATE requests are almost the same as PLACE requests but also have id("requ
 
 ### RETRACT requests
 The RETRACT is used for deleting prevously posted messages:
+
 ```javascript
-        
         {
             "action": "RETRACT",
             "request":"512_667c16ea8a52fcd245037187826267e6", 
@@ -136,19 +136,19 @@ The RETRACT is used for deleting prevously posted messages:
         }
 ```
 ### Response types
-Matcher can return the following response codes:
-        - "251 UPDATED"
-        - "252 RETRACTED"
-        - "253 MATCHED"
-        - "404 NOT FOUND"
-        - "400 BAD REQUEST"
-        - "408 TIMEOUT"
-        - "409 PLACE_TIMEOUT"
-        - "410 UPDATE_TIMEOUT"
-        - "411 RETRACT_TIMEOUT"
-        - "420 RETRACT_ERROR"
-        - "500 SERVER ERROR"
+Matcher can return the following response codes:  
+- 251 UPDATED   
+- 252 RETRACTED    
+- 253 MATCHED  
+- 404 NOT FOUND  
+- 400 BAD REQUEST  
+- 408 TIMEOUT  
+- 409 PLACE TIMEOUT  
+- 410 UPDATE TIMEOUT  
+- 411 RETRACT TIMEOUT  
+- 420 RETRACT ERROR  
+- 500 SERVER ERROR  
         
 ### Matcher query language
-Currently matcher supports following comparision operators: <, >, <=, >=, ==, and, or
-"and" has bigger priority than "or".
+Currently matcher supports following comparision operators: <, >, <=, >=, !=, ==, and, or.  
+Operator "and" has bigger priority than operator "or".
