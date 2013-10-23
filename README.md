@@ -43,7 +43,7 @@ Let's suppose that Alice wants to buy a car which costs less than 30000, has red
             "version": "1.0",
             "match_response_key": "matcher_output"
         }
-
+```
 Let's see each of the field one by one:
     action - is the type of request;
     properties - is property of the object which is posted(not used in matching);
@@ -68,7 +68,7 @@ If the other side posts requests on selling cars - Matcher will try to find the 
             "version": "1.0",
             "match_response_key": "matcher_output"
         }
-
+```
 
 The request is almost same as the upper on except that match field is empty string, so that car doesn't have any requirements on the buyer. 
     
@@ -96,7 +96,7 @@ When Matcher finds two compatible requests it sends acknowledgement to both side
                             "properties": {"name": "Alice"}
                         }
         }
-
+```
             
 In case that no match found in time-to-live period, then response is this:
 ```javascript
@@ -106,7 +106,7 @@ In case that no match found in time-to-live period, then response is this:
             "request": "512_667c16ea8a52fcd245037187826267e6", 
             "properties":  {:name "Saab 919"}
         }
-
+```
             
 ### UPDATE requests
 The UPDATE requests are almost the same as PLACE requests but also have id("request" field) of the previously posted request:
@@ -122,7 +122,7 @@ The UPDATE requests are almost the same as PLACE requests but also have id("requ
             "version": "1.0",
             "match_response_key": "matcher_output"
         }
-
+```
 
 ### RETRACT requests
 The RETRACT is used for deleting prevously posted messages:
@@ -134,10 +134,9 @@ The RETRACT is used for deleting prevously posted messages:
             "version": "1.0",
             "match_response_key": "matcher_output"
         }
- 
+```
 ### Response types
 Matcher can return the following response codes:
-```javascript
         - "251 UPDATED"
         - "252 RETRACTED"
         - "253 MATCHED"
