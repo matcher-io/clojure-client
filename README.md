@@ -150,4 +150,4 @@ Matcher can return the following response codes:
         
 ### Matcher query language
 Currently matcher supports following comparision operators: <, >, <=, >=, !=, ==, and, or.  
-Operator "and" has bigger priority than operator "or".
+Operator "and" has greater priority than operator "or".
