@@ -1,4 +1,6 @@
-(ns io.matcher.utils
+(ns
+  ^{:doc "general utils"}
+  io.matcher.utils
   (:use io.matcher.config)
   (:require [clojure.data.json :as json]
             [clojure.tools.logging :as log]))

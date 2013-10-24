@@ -1,4 +1,6 @@
-(ns io.matcher.config)
+(ns
+  ^{:doc "default config values for client"} 
+  io.matcher.config)
 
 (defonce ^{:const true} DEFAULT_VERSION "1.0")
 (defonce ^{:const true} DEFAULT_CONNECTION_OPTIONS {

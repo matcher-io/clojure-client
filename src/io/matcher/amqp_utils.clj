@@ -1,4 +1,6 @@
-(ns io.matcher.amqp-utils
+(ns
+  ^{:doc "ampq specific utils"}
+  io.matcher.amqp-utils
   (:require [langohr.queue :as lq]))
 
 (defn make-queue [channel queueName]
