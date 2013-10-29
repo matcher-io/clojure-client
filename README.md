@@ -1,4 +1,4 @@
-## *How-to: developing drivers for matcher*
+## *How-to: developing drivers for Matcher*
 
 ### Table of contents
 - [Requirements](#requirements)
@@ -24,6 +24,8 @@ This manual concentrates on communication over AMQP.
 
 Client communicates with Matcher by sending requests, after processing the request Matcher sends response to the client via AMQP.  
 Request and responses all are in JSON format. 
+
+Requests sent to queue named "matcher_input" with default exchange name "". Responses are received at queue, which is set in request header "match_response_key".
 
 #### The request types are:
 - PLACE - places the request in the matcher, so that it can be matched further
