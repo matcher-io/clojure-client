@@ -1,4 +1,4 @@
-(ns ^{:doc "api-library utils for using Matcher"} 
+(ns ^{:doc "api-library for using Matcher"} 
   io.matcher.client
   (:use io.matcher.config)
   (:require [io.matcher.utils      :as utils]
@@ -42,7 +42,7 @@
     (request-sync *-transactor-* request)))
 
 (defn do-requests
-  "asynchrounously executes all the given requests"
+  "asynchrounously executes all the given requests and executes callback after all"
   [requests callback]
   (dorun
     (map #(request-async *-transactor-* % callback) requests)))
@@ -55,17 +55,15 @@
                   (utils/make-counting-listener (count requests) confirms)) 
     @confirms))
 
-(defn- make-delivery-handler [transactor match-listener listeners]
+(defn make-delivery-handler [listeners match-listener]
   (fn [channel metadata ^bytes payload]
     (let [{:keys [type]} metadata 
           content (utils/payload->json payload)]
-                                  
-      ;; change predicate to response type?
+      
       (condp = type
         "confirm" (let [{:keys [correlation-id]} metadata]
                     (log/debug (str "response: " content))
                     
-                    (log/debug (str "listeners: " listeners))
                     (if-let [listener (@listeners correlation-id)]
                       (do
                         (swap! listeners dissoc correlation-id)
@@ -77,29 +75,30 @@
                   
                   (when match-listener
                     (match-listener content)))
-                                     
+        
         ;default action
         (log/debug (str "undefined message type: " type " " content))))))
 
 
+
 (defn transactor
   "creates Transactor implementation for the given connection, input queue name and match-listener, which is call on matching"
-  [connection match-listener]
+  [connection outQueueName match-listener]
   (let [queueName IN_QUEUE
         channel (lch/open connection)
         inputQueue (aqutils/make-queue channel queueName) 
-        outputQueue (aqutils/make-queue channel OUT_QUEUE)
-        correlation (atom 0) listeners (atom {}) transactor (atom nil)] 
+        outputQueue (aqutils/make-queue channel outQueueName)
+        correlation (atom 0) listeners (atom {}) transactor (atom nil)]
     
-    (lb/consume channel OUT_QUEUE
+    (lb/consume channel outQueueName
 	       (lc/create-default channel 
-                           :handle-delivery-fn (make-delivery-handler transactor match-listener listeners))
+                           :handle-delivery-fn (make-delivery-handler listeners match-listener))
+        
         :auto-ack true)
     
     (reset! transactor 
             (reify Transactor
               (close [_]
-                (lq/delete channel inputQueue)
                 (lq/delete channel outputQueue)
                 (lch/close channel))
               
@@ -107,14 +106,14 @@
                 (log/debug (str "request: " request))
                 
                 (let [correlation (str (swap! correlation inc))
-                        request (json/write-str (assoc request :match_response_key OUT_QUEUE))]
+                      request (json/write-str (assoc request :match_response_key outQueueName))]
                   
-                  (swap! listeners assoc correlation listener)  
+                  (swap! listeners assoc correlation listener)
                   
                   (lb/publish channel "" queueName request 
                               :content-type "application/json" 
                               :type "request" 
-                              :reply-to OUT_QUEUE
+                              :reply-to outQueueName
                               :correlation-id correlation)     
                   
                   correlation))
