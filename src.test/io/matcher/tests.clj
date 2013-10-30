@@ -47,17 +47,18 @@
                  
                  (mt/place :properties p3 :capabilities c3 :match m3)
                  (mt/place :properties p4 :capabilities c4 :match m4)))
-             (.await TESTS_COUNT))))
+             (.await TESTS_COUNT)
+             (mt/close transactor))))
 
 
 (deftest test-update
-  (testing "Testing place"
+  (testing "Testing update"
            (let [TESTS_COUNT (CountDownLatch. 1)
                  connection (lc/connect CONNECTION_OPTIONS)
                  listener (match-listener TESTS_COUNT #{"BMW" "Bob"} #{}) 
                  transactor (mt/transactor connection "matcher_output1" listener)
                  ]
-  
+             
              (mt/with-matcher transactor
                (let [{p3 :properties c3 :capabilities m3 :match} placeRequest3
                      {p4 :properties c4 :capabilities m4 :match} placeRequest4
@@ -68,6 +69,24 @@
                  (is id3)
                  (when id3 
                    (mt/update :id id3 :properties p3 :capabilities c3New :match m3))
+                 (.await TESTS_COUNT)
                  (mt/close transactor))))))
-           
+
+(deftest test-retract
+  (testing "Testing retract"
+           (let [TESTS_COUNT (CountDownLatch. 1)
+                 connection (lc/connect CONNECTION_OPTIONS)
+                 listener (match-listener TESTS_COUNT #{"BMW" "Bob"} #{}) 
+                 transactor (mt/transactor connection "matcher_output1" listener)
+                 ]
+             (mt/with-matcher transactor
+               (let [{p1 :properties c1 :capabilities m1 :match} placeRequest1
+                     {p2 :properties c2 :capabilities m2 :match} placeRequest2
+                     id1 (get (mt/place :properties p1 :capabilities c1 :match m1) :id)]
+                 (mt/retract id1)
+                 (mt/place :properties p2 :capabilities c2 :match m2)
+                 (.await TESTS_COUNT)
+)))))
+                 ;                 (mt/close transactor))))))
+
 (run-tests)
