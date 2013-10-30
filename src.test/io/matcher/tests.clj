@@ -86,7 +86,6 @@
                  (mt/retract id1)
                  (mt/place :properties p2 :capabilities c2 :match m2)
                  (.await TESTS_COUNT)
-)))))
-                 ;                 (mt/close transactor))))))
+                 (mt/close transactor))))))
 
 (run-tests)
