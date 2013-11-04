@@ -78,7 +78,7 @@
     (let [{:keys [type]} metadata 
           content (utils/payload->json payload)]
       
-      (condp = type
+      (case type
         "confirm" (let [{:keys [correlation-id]} metadata]
                     (log/debug (str "response: " content))
                     

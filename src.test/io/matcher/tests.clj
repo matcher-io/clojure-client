@@ -61,8 +61,8 @@
              (mt/with-matcher transactor
                (let [{p3 :properties c3 :capabilities m3 :match} place-request-3
                      {p4 :properties c4 :capabilities m4 :match} place-request-4
-                     id3 (get (mt/place :properties p3 :capabilities c3 :match m3) :id)
-                     id4 (get (mt/place :properties p4 :capabilities c4 :match m4) :id)
+                     id3 (get (mt/place-sync :properties p3 :capabilities c3 :match m3) :id)
+                     id4 (get (mt/place-sync :properties p4 :capabilities c4 :match m4) :id)
                      c3New (merge c3 {:price 10000})]
                  
                  (is id3)
@@ -90,4 +90,3 @@
                  (.await number-of-tests)
                  (mt/close transactor))))))
 
-(run-tests)
