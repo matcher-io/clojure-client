@@ -55,6 +55,7 @@
                   (utils/make-counting-listener (count requests) confirms)) 
     @confirms))
 
+
 (defn make-delivery-handler [listeners match-listener]
   (fn [channel metadata ^bytes payload]
     (let [{:keys [type]} metadata 
@@ -83,14 +84,14 @@
 
 (defn transactor
   "creates Transactor implementation for the given connection, input queue name and match-listener, which is call on matching"
-  [connection outQueueName match-listener]
-  (let [queueName IN_QUEUE
+  [connection output-queue-name match-listener]
+  (let [queue-name default-input-queue
         channel (lch/open connection)
-        inputQueue (aqutils/make-queue channel queueName) 
-        outputQueue (aqutils/make-queue channel outQueueName)
+        input-queue (aqutils/make-queue channel queue-name) 
+        output-queue (aqutils/make-queue channel output-queue-name)
         correlation (atom 0) listeners (atom {}) transactor (atom nil)]
     
-    (lb/consume channel outQueueName
+    (lb/consume channel output-queue-name
 	       (lc/create-default channel 
                            :handle-delivery-fn (make-delivery-handler listeners match-listener))
         
@@ -99,21 +100,21 @@
     (reset! transactor 
             (reify Transactor
               (close [_]
-                (lq/delete channel outputQueue)
+                (lq/delete channel output-queue)
                 (lch/close channel))
               
               (request-async [_ request listener]
                 (log/debug (str "request: " request))
                 
                 (let [correlation (str (swap! correlation inc))
-                      request (json/write-str (assoc request :match_response_key outQueueName))]
+                      request (json/write-str (assoc request :match_response_key output-queue-name))]
                   
                   (swap! listeners assoc correlation listener)
                   
-                  (lb/publish channel "" queueName request 
+                  (lb/publish channel "" queue-name request 
                               :content-type "application/json" 
                               :type "request" 
-                              :reply-to outQueueName
+                              :reply-to output-queue-name
                               :correlation-id correlation)     
                   
                   correlation))

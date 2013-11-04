@@ -1,12 +1,13 @@
 (ns
-  ^{:doc "general utils"}
+  ^{:doc "general utility functions"
+    :author "manzur"}
   io.matcher.utils
   (:use io.matcher.config)
   (:require [clojure.data.json :as json]
             [clojure.tools.logging :as log]))
 
 (defn make-request [action properties capabilities match ttl & [version]] 
-  (let [version (or version DEFAULT_VERSION)]
+  (let [version (or version default-version)]
     {
      :action action
      :properties properties
@@ -20,12 +21,13 @@
   (partial make-request "PLACE"))
 
 (defn update-request [id properties capabilities match ttl & [version]]
-  (let [request (make-request "UPDATE" properties capabilities match ttl version)
+  (def update-fn (partial make-request "UPDATE"))
+  (let [request (update-fn properties capabilities match ttl version)
         result (merge request {:request id})]
     result))
 
 (defn retract-request [id & [version]]
-  (let [version (or version DEFAULT_VERSION)]
+  (let [version (or version default-version)]
     {
      :action "RETRACT"
      :request id
