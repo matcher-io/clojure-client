@@ -23,23 +23,41 @@
   `(binding [*-transactor-* ~transactor]
      ~@actions))
 
-(defn place
+(defn place-sync
   "places request on the matcher"
-  [& {:keys [properties capabilities match ttl] :or {ttl DEFAULT_TTL}}]
+  [& {:keys [properties capabilities match ttl] :or {ttl default-ttl}}]
   (let [request (utils/place-request properties capabilities match ttl)]
     (request-sync *-transactor-* request)))
 
-(defn update
+(defn place-async
+  "places request asynchronously on the matcher"
+  [& {:keys [properties capabilities match ttl callback] :or {ttl default-ttl}}]
+  (let [request (utils/place-request properties capabilities match ttl)]
+    (request-async *-transactor-* request callback)))
+
+(defn update-sync
   "updates the request(placed earlier) with the give id"
-  [& {:keys [id properties capabilities match ttl] :or {ttl DEFAULT_TTL}}]
+  [& {:keys [id properties capabilities match ttl] :or {ttl default-ttl}}]
   (let [request (utils/update-request id properties capabilities match ttl)]
     (request-sync *-transactor-* request)))
 
-(defn retract
+(defn update-async
+  "updates the request(placed earlier) asyncrhonously with the give id"
+  [& {:keys [id properties capabilities match ttl callback] :or {ttl default-ttl}}]
+  (let [request (utils/update-request id properties capabilities match ttl)]
+    (request-async *-transactor-* request callback)))
+
+(defn retract-sync
   "retracts the request with the given id"
   [id]
   (let [request (utils/retract-request id)]
     (request-sync *-transactor-* request)))
+
+(defn retract-async
+  "retracts the request asynchronously with the given id"
+  [id callback]
+  (let [request (utils/retract-request id)]
+    (request-async *-transactor-* request callback)))
 
 (defn do-requests
   "asynchrounously executes all the given requests and executes callback after all"
@@ -54,7 +72,6 @@
     (do-requests  requests 
                   (utils/make-counting-listener (count requests) confirms)) 
     @confirms))
-
 
 (defn make-delivery-handler [listeners match-listener]
   (fn [channel metadata ^bytes payload]

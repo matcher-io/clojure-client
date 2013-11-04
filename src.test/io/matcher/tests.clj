@@ -42,14 +42,13 @@
                      {p3 :properties c3 :capabilities m3 :match} place-request-3
                      {p4 :properties c4 :capabilities m4 :match} place-request-4]
                  
-                 (mt/place :properties p1 :capabilities c1 :match m1)
-                 (mt/place :properties p2 :capabilities c2 :match m2)
+                 (mt/place-sync :properties p1 :capabilities c1 :match m1)
+                 (mt/place-sync :properties p2 :capabilities c2 :match m2)
                  
-                 (mt/place :properties p3 :capabilities c3 :match m3)
-                 (mt/place :properties p4 :capabilities c4 :match m4)))
+                 (mt/place-sync :properties p3 :capabilities c3 :match m3)
+                 (mt/place-sync :properties p4 :capabilities c4 :match m4)))
              (.await number-of-tests)
              (mt/close transactor))))
-
 
 (deftest test-update
   (testing "Testing update"
@@ -68,7 +67,7 @@
                  
                  (is id3)
                  (when id3 
-                   (mt/update :id id3 :properties p3 :capabilities c3New :match m3))
+                   (mt/update-sync :id id3 :properties p3 :capabilities c3New :match m3))
                  (.await number-of-tests)
                  (mt/close transactor))))))
 
@@ -83,10 +82,10 @@
                
                (let [{p1 :properties c1 :capabilities m1 :match} place-request-1
                      {p2 :properties c2 :capabilities m2 :match} place-request-2
-                     id1 (get (mt/place :properties p1 :capabilities c1 :match m1) :id)]
+                     id1 (get (mt/place-sync :properties p1 :capabilities c1 :match m1) :id)]
                
-                 (mt/retract id1)
-                 (mt/place :properties p2 :capabilities c2 :match m2)
+                 (mt/retract-sync id1)
+                 (mt/place-sync :properties p2 :capabilities c2 :match m2)
                  
                  (.await number-of-tests)
                  (mt/close transactor))))))
