@@ -1,4 +1,4 @@
-(defproject matcher-client "0.0.1"
+(defproject io.matcher/matcher-client "0.0.1"
   :min-lein-version "2.0.0"
   :description "matcher.io client library for Clojure"
   :url "http://www.matcher.io"
