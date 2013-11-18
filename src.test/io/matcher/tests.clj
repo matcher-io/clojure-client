@@ -27,6 +27,24 @@
         (is (contains? sucesses name))
         (is (contains? fails name)))
       (.countDown testsCount))))
+
+
+(let [connection (lc/connect connection-options)
+      matcher (mt/matcher connection "matcher_output1")
+      ]
+  
+  (mt/with-matcher matcher
+    (let [{p1 :properties c1 :capabilities m1 :match} place-request-1
+          {p2 :properties c2 :capabilities m2 :match} place-request-2
+          {p3 :properties c3 :capabilities m3 :match} place-request-3
+          {p4 :properties c4 :capabilities m4 :match} place-request-4]
+      
+      (mt/place :properties p1 :capabilities c1 :match m1 :callback (fn[x] (log/debug "super match listener:" x)))
+      (mt/place :properties p2 :capabilities c2 :match m2 :callback (fn[x] (log/debug "super match listener:" x)))
+      
+      (mt/place :properties p3 :capabilities c3 :match m3 :callback (fn[x] (log/debug "super match listener:" x)))
+      (mt/place :properties p4 :capabilities c4 :match m4 :callback (fn[x] (log/debug "super match listener:" x))))))
+  
       
 (deftest test-place
   (testing "Testing place"
@@ -90,3 +108,21 @@
                  (.await number-of-tests)
                  (mt/close transactor))))))
 
+(let [number-of-tests (CountDownLatch. 2)
+      connection (lc/connect connection-options)
+      listener (match-listener number-of-tests #{"Manzur" "Saab 919"} #{"BMW" "Bob"})
+      transactor (mt/transactor connection "matcher_output1" listener)
+      ]
+             
+  (mt/with-matcher transactor
+    (let [{p1 :properties c1 :capabilities m1 :match} place-request-1
+          {p2 :properties c2 :capabilities m2 :match} place-request-2
+          {p3 :properties c3 :capabilities m3 :match} place-request-3
+          {p4 :properties c4 :capabilities m4 :match} place-request-4]
+      
+      (mt/place-sync :properties p1 :capabilities c1 :match m1)
+      (mt/place-sync :properties p2 :capabilities c2 :match m2)
+      
+      (mt/place-sync :properties p3 :capabilities c3 :match m3)
+      (mt/place-sync :properties p4 :capabilities c4 :match m4))))
+ 
