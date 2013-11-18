@@ -1,18 +1,27 @@
 ## *How-to: developing drivers for Matcher*
 
-A Clojure library designed to ... well, that part is up to you.
+### Table of contents
+- [Requirements](#requirements)
+- [Basics](#basics)
+- [Place requests](#place-requests)
+- [Update requests](#update-requests)
+- [Retract requests](#retract-requests)
+- [Response types](#response-types)
+- [Matcher query language](#matcher-query-language)
 
-## Usage
+### Requirements:
+- Erlang (see Matcher requirements)
+- RabbitMQ (see Matcher requirements)
+- Matcher
 
-FIXME
+### Interaction with Matcher happens via:
+- AMQP protocol 
+- Erlang
 
-## License
+This manual concentrates on communication over AMQP.
 
-Copyright © 2013 FIXME
+### Basics
 
-<<<<<<< HEAD
-Distributed under the Eclipse Public License, the same as Clojure.
-=======
 Client communicates with Matcher by sending requests, after processing the request Matcher sends response to the client via AMQP.  
 Request and responses all are in JSON format. 
 
@@ -144,4 +153,3 @@ Matcher can return the following response codes:
 ### Matcher query language
 Currently matcher supports following comparision operators: <, >, <=, >=, !=, ==, and, or.  
 Operator "and" has greater priority than operator "or".
->>>>>>> 9bfd9635a098daf52a840023d42d076737d8940c
